@@ -1,71 +1,56 @@
-/*********
-* ALU.hdl – ALU (Arithmetic Logic Unit):
-* Computes out = one of the following functions:
-* 0, 1, -1, x, y, !x, !y, -x, -y,
-* x + 1, y + 1, x - 1, y - 1,
-* x + y, x - y, y - x,
-* x & y, x | y
-*
-* Extensión del proyecto:
-* - Modo shift cuando zx=0, nx=0, zy=0, ny=0, no=1
-* - f=0 => shift left
-* - f=1 => shift right
-*
-* Autor 1:
-* Autor 2:
-*********/
 CHIP ALU {
-    IN
-        x[16], y[16],
-        zx, nx, zy, ny, f, no;
-    OUT
-        out[16],
-        zr,
-        ng,
-        result;
+    IN x[16], y[16], zx, nx, zy, ny, f, no;
+    OUT out[16], zr, ng, result;
 
     PARTS:
-    // Datapath estándar Hack ALU
-    Mux16(a=x, b=false, sel=zx, out=xZeroed);
-    Not16(in=xZeroed, out=xNot);
-    Mux16(a=xZeroed, b=xNot, sel=nx, out=xReady);
+    // Standard Hack ALU path
+    Mux16(a=x, b=false, sel=zx, out=x1);
+    Not16(in=x1, out=nx1);
+    Mux16(a=x1, b=nx1, sel=nx, out=x2);
 
-    Mux16(a=y, b=false, sel=zy, out=yZeroed);
-    Not16(in=yZeroed, out=yNot);
-    Mux16(a=yZeroed, b=yNot, sel=ny, out=yReady);
+    Mux16(a=y, b=false, sel=zy, out=y1);
+    Not16(in=y1, out=ny1);
+    Mux16(a=y1, b=ny1, sel=ny, out=y2);
 
-    And16(a=xReady, b=yReady, out=andOut);
-    Add16(a=xReady, b=yReady, out=addOut);
-    Mux16(a=andOut, b=addOut, sel=f, out=preNo);
-    Not16(in=preNo, out=preNoNot);
-    Mux16(a=preNo, b=preNoNot, sel=no, out=stdOut);
+    And16(a=x2, b=y2, out=aout);
+    Add16(a=x2, b=y2, out=fout);
+    Mux16(a=aout, b=fout, sel=f, out=out1);
 
-    // Detección del modo shift
-    // shiftMode = !zx & !nx & !zy & !ny & no
+    Not16(in=out1, out=nout1);
+    Mux16(a=out1, b=nout1, sel=no, out=stdOut);
+
+    // Shift mode detection:
+    // zx=0, nx=0, zy=0, ny=0, no=1
     Not(in=zx, out=nzx);
     Not(in=nx, out=nnx);
     Not(in=zy, out=nzy);
     Not(in=ny, out=nny);
 
-    And(a=nzx, b=nnx, out=shiftT0);
-    And(a=nzy, b=nny, out=shiftT1);
-    And(a=shiftT0, b=shiftT1, out=shiftT2);
-    And(a=shiftT2, b=no, out=shiftMode);
+    And(a=nzx, b=nnx, out=t0);
+    And(a=nzy, b=nny, out=t1);
+    And(a=t0, b=t1, out=t2);
+    And(a=t2, b=no, out=shiftMode);
 
-    // Shifter externo del punto 1
-    // La dirección viene dada por f:
-    // 0 => izquierda, 1 => derecha
-    Shifter(in=x, direction=f, out=shiftOut, result=shiftResult);
+    // Shift path over x
+    Shifter(in=x, direction=f, out=shiftOut, result=shiftBit);
 
-    // Selección final de salida
-    Mux16(a=stdOut, b=shiftOut, sel=shiftMode, out=out);
-    Mux(a=false, b=shiftResult, sel=shiftMode, out=result);
+    // Final output selection
+    Mux16(
+        a=stdOut,
+        b=shiftOut,
+        sel=shiftMode,
+        out=out,
+        out[0..7]=outflag1,
+        out[8..15]=outflag2,
+        out[15]=ng
+    );
 
-    // Banderas zr y ng calculadas sobre la salida final
-    Or8Way(in=out[0..7], out=orLow);
-    Or8Way(in=out[8..15], out=orHigh);
-    Or(a=orLow, b=orHigh, out=outNonZero);
-    Not(in=outNonZero, out=zr);
+    // zr flag
+    Or8Way(in=outflag1, out=or1);
+    Or8Way(in=outflag2, out=or2);
+    Or(a=or1, b=or2, out=or3);
+    Not(in=or3, out=zr);
 
-    Or(a=out[15], b=false, out=ng);
+    // result only meaningful in shift mode
+    Mux(a=false, b=shiftBit, sel=shiftMode, out=result);
 }
