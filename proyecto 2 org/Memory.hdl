@@ -1,7 +1,7 @@
 /*********
 * Memory.hdl – Memoria principal del computador Hack
-* Autor 1:
-* Autor 2:
+* Autor 1: Lucas Saldarriaga
+* Autor 2: Santiago Mafla
 *
 * Reglas de direccionamiento:
 * 0..16383    -> RAM16K
