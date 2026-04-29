@@ -1,7 +1,7 @@
 /*********
 * Shifter.hdl – Desplazamiento de un bit a la izquierda o derecha
-* Autor 1:
-* Autor 2:
+* Autor 1: Lucas Saldarriaga
+* Autor 2: Santiago Mafla
 *
 * Implementación:
 * if (direction == 0)  // izquierda
