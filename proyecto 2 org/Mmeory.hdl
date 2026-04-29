@@ -1,0 +1,35 @@
+/*********
+* Memory.hdl – Memoria principal del computador Hack
+* Autor 1:
+* Autor 2:
+*
+* Reglas de direccionamiento:
+* 0..16383    -> RAM16K
+* 16384..24575 -> Screen
+* 24576       -> Keyboard
+*********/
+CHIP Memory {
+    IN address[15], in[16], load;
+    OUT out[16];
+
+    PARTS:
+    // Decodificación de rango
+    Not(in=address[14], out=addr14Not);
+    Not(in=address[13], out=addr13Not);
+
+    // RAM16K si address[14] = 0
+    And(a=load, b=addr14Not, out=loadRam);
+
+    // Screen si address[14]=1 y address[13]=0
+    And(a=address[14], b=addr13Not, out=screenRange);
+    And(a=load, b=screenRange, out=loadScreen);
+
+    RAM16K(in=in, load=loadRam, address=address[0..13], out=ramOut);
+    Screen(in=in, load=loadScreen, address=address[0..12], out=screenOut);
+    Keyboard(out=kbdOut);
+
+    // Selección de salida:
+    // 00/01 -> RAM, 10/11 -> Screen/KBD luego se refina con address[13]
+    Mux16(a=screenOut, b=kbdOut, sel=address[13], out=ioOut);
+    Mux16(a=ramOut, b=ioOut, sel=address[14], out=out);
+}
