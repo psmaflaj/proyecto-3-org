@@ -5,82 +5,55 @@ Autores:
 - Autor 2: Santiago Mafla
 
 1. Objetivo
-Se requiere extender la instrucción tipo C de Hack para soportar:
-- Shift left:  dest = reg << 1
-- Shift right: dest = reg >> 1
+Se requiere extender la ALU de la arquitectura Hack para soportar corrimientos de un bit:
+- Shift left
+- Shift right
 
-La CPU del computador Hack estándar usa el formato:
+La arquitectura Hack estándar usa instrucciones tipo C con formato:
+
 111 a cccccc ddd jjj
 
-En esta propuesta, se conservan:
-- ddd: destinos (A, D, M)
-- jjj: saltos
-y se extiende solamente el campo comp para representar el corrimiento.
+En esta solución no se redefine completamente la tabla estándar de comp, sino que se adopta una convención de control interno para activar el modo shift en la ALU extendida.
 
 2. Decisión de diseño
-Se definieron seis códigos de comp no usados por Hack estándar.
+Se definió que la ALU entra en modo shift cuando las señales de control toman los siguientes valores:
 
-Codificación propuesta:
-
-1) D << 1
-111 0 100000 ddd jjj
-
-2) D >> 1
-111 0 100001 ddd jjj
-
-3) A << 1
-111 0 100010 ddd jjj
-
-4) A >> 1
-111 0 100011 ddd jjj
-
-5) M << 1
-111 1 100000 ddd jjj
-
-6) M >> 1
-111 1 100001 ddd jjj
-
-Observaciones:
-- El bit a se usa para diferenciar M frente a registros internos.
-- El patrón c1c2c3c4 = 1000 identifica que la instrucción pertenece a la familia shift.
-- El bit c5 distingue A frente a D cuando a = 0.
-- El bit c6 codifica la dirección:
-  * 0 = izquierda
-  * 1 = derecha
-
-3. Mapeo interno hacia la ALU
-Una vez la CPU detecta una instrucción shift, fuerza la ALU con:
 - zx = 0
 - nx = 0
 - zy = 0
 - ny = 0
 - no = 1
-- f  = dirección del corrimiento
 
-y además selecciona la fuente adecuada para la entrada x:
-- D para D<<1 y D>>1
-- A para A<<1 y A>>1
-- M para M<<1 y M>>1
+y el bit `f` determina la dirección del corrimiento:
+
+- f = 0  -> shift left
+- f = 1  -> shift right
+
+3. Operación interna
+Cuando la ALU detecta esa combinación de control, ignora la operación aritmético-lógica estándar y activa el chip `Shifter`.
+
+El corrimiento se aplica sobre la entrada `x` de la ALU:
+
+- x << 1 si f = 0
+- x >> 1 si f = 1
+
+Además:
+- `out` entrega el resultado del corrimiento
+- `result` entrega el bit expulsado en el corrimiento
+- `zr` y `ng` se calculan sobre la salida final de la ALU
+
+4. Integración con la arquitectura
+La solución mantiene la compatibilidad con la ALU estándar de Hack:
+- cuando no se cumple la combinación especial de control, la ALU ejecuta las operaciones normales
+- cuando sí se cumple, la ALU ejecuta el corrimiento usando `Shifter`
 
 De esta forma se cumple lo exigido en el punto 2 del proyecto:
-el comando shift se reconoce en la ALU con zx=nx=zy=ny=0, no=1,
-y f determina si el corrimiento es a la izquierda o a la derecha.
-
-4. Ejemplos
-D = M << 1
-- comp = 1 100000
-- dest = 010
-- jump = 000
-Binario:
-1111100000010000
-
-AM = D >> 1
-- comp = 0 100001
-- dest = 101
-- jump = 000
-Binario:
-1110100001101000
+el comando shift se reconoce en la ALU con zx=0, nx=0, zy=0, ny=0, no=1,
+y `f` determina si el corrimiento es a la izquierda o a la derecha.
 
 5. Compatibilidad
-Los códigos seleccionados no pertenecen a la tabla estándar de comp de Hack,
-por lo que no interfieren con las instrucciones tradicionales de la arquitectura.
+La extensión de shift no altera el funcionamiento normal de la ALU estándar cuando no se activa el modo shift.
+
+Por tanto:
+- las operaciones tradicionales de Hack se conservan
+- el comportamiento extendido solo aparece bajo la combinación especial de control definida
