@@ -1,0 +1,86 @@
+Proyecto 2 – Punto 4: Arquitectura de la instrucción para shift
+
+Autores:
+- Autor 1: Lucas Saldarriaga
+- Autor 2: Santiago Mafla
+
+1. Objetivo
+Se requiere extender la instrucción tipo C de Hack para soportar:
+- Shift left:  dest = reg << 1
+- Shift right: dest = reg >> 1
+
+La CPU del computador Hack estándar usa el formato:
+111 a cccccc ddd jjj
+
+En esta propuesta, se conservan:
+- ddd: destinos (A, D, M)
+- jjj: saltos
+y se extiende solamente el campo comp para representar el corrimiento.
+
+2. Decisión de diseño
+Se definieron seis códigos de comp no usados por Hack estándar.
+
+Codificación propuesta:
+
+1) D << 1
+111 0 100000 ddd jjj
+
+2) D >> 1
+111 0 100001 ddd jjj
+
+3) A << 1
+111 0 100010 ddd jjj
+
+4) A >> 1
+111 0 100011 ddd jjj
+
+5) M << 1
+111 1 100000 ddd jjj
+
+6) M >> 1
+111 1 100001 ddd jjj
+
+Observaciones:
+- El bit a se usa para diferenciar M frente a registros internos.
+- El patrón c1c2c3c4 = 1000 identifica que la instrucción pertenece a la familia shift.
+- El bit c5 distingue A frente a D cuando a = 0.
+- El bit c6 codifica la dirección:
+  * 0 = izquierda
+  * 1 = derecha
+
+3. Mapeo interno hacia la ALU
+Una vez la CPU detecta una instrucción shift, fuerza la ALU con:
+- zx = 0
+- nx = 0
+- zy = 0
+- ny = 0
+- no = 1
+- f  = dirección del corrimiento
+
+y además selecciona la fuente adecuada para la entrada x:
+- D para D<<1 y D>>1
+- A para A<<1 y A>>1
+- M para M<<1 y M>>1
+
+De esta forma se cumple lo exigido en el punto 2 del proyecto:
+el comando shift se reconoce en la ALU con zx=nx=zy=ny=0, no=1,
+y f determina si el corrimiento es a la izquierda o a la derecha.
+
+4. Ejemplos
+D = M << 1
+- comp = 1 100000
+- dest = 010
+- jump = 000
+Binario:
+1111100000010000
+
+AM = D >> 1
+- comp = 0 100001
+- dest = 101
+- jump = 000
+Binario:
+1110100001101000
+
+5. Compatibilidad
+Los códigos seleccionados no pertenecen a la tabla estándar de comp de Hack,
+por lo que no interfieren con las instrucciones tradicionales de la arquitectura.
