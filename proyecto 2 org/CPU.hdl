@@ -1,7 +1,7 @@
 /*********
 * CPU.hdl – CPU del computador Hack con soporte para shift
-* Autor 1:
-* Autor 2:
+* Autor 1: Lucas Saldarriaga
+* Autor 2: Santiago Mafla
 *
 * Extensión de comp para shift (ver design.txt):
 * 111 0 100000 ddd jjj  => D<<1
@@ -64,8 +64,8 @@ CHIP CPU {
     // Registros A y D
     // ------------------------------------------------------------
     // Valor actual del registro A
-    ARegister(in=aIn, load=loadA, out=aOut);
-    DRegister(in=aluOut, load=loadD, out=dOut);
+    Register(in=aIn, load=loadA, out=aOut);
+    Register(in=aluOut, load=loadD, out=dOut);
 
     // Fuente Y estándar: A o M según a-bit
     Mux16(a=aOut, b=inM, sel=instruction[12], out=stdY);
@@ -137,7 +137,7 @@ CHIP CPU {
     And(a=instruction[1], b=zr, out=jeq);
     And(a=instruction[2], b=ge, out=jge);
 
-    And(a=instruction[2], b=ng, out=jlt); // j1 when only ng true for JLT handled below
+    And(a=instruction[2], b=ng, out=jlt); // j1 cuando solo ng sea verdadero para JLT, como se explica a continuación
     And(a=instruction[1], b=le, out=jle);
     And(a=instruction[0], b=nzr, out=jne);
 
