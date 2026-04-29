@@ -22,9 +22,18 @@ El proyecto está dividido en dos grandes módulos, cada uno con su respectiva d
 ```text
 /
 ├── proyecto2/                  # Hardware (Chips y Arquitectura)
-│   ├── src/                    # Archivos fuente (.hdl)
-│   ├── docs/                   # Documentación de diseño (design.txt)
-│   └── test/                   # Scripts de prueba (.tst, .cmp)
+│   ├── ALU.hdl                 # ALU extendida con soporte de shift
+│   ├── ALU.md5                 # Hash MD5 del archivo ALU.hdl
+│   ├── CPU.hdl                 # Implementación de la CPU Hack
+│   ├── CPU.md5                 # Hash MD5 del archivo CPU.hdl
+│   ├── Computer.hdl            # Integración CPU + Memory + ROM32K
+│   ├── Computer.md5            # Hash MD5 del archivo Computer.hdl
+│   ├── Memory.hdl              # Mapeo RAM16K / Screen / Keyboard
+│   ├── Memory.md5              # Hash MD5 del archivo Memory.hdl
+│   ├── Shifter.hdl             # Circuito de corrimiento izquierda/derecha
+│   ├── Shifter.md5             # Hash MD5 del archivo Shifter.hdl
+│   ├── design.txt              # Diseño de la extensión shift en la arquitectura
+│   └── design.md5              # Hash MD5 del archivo design.txt
 │
 ├── proyecto3/                  # Software (Ensamblador y Desensamblador)
 │   ├── src/                    # Scripts de Python (.py) y firmas de seguridad (.md5)
