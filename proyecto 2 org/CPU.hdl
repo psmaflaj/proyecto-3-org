@@ -1,192 +1,59 @@
-/*********
-* CPU.hdl – CPU del computador Hack con soporte para shift
-* Autor 1: Lucas Saldarriaga
-* Autor 2: Santiago Mafla
-*
-* Extensión de comp para shift (ver design.txt):
-* 111 0 100000 ddd jjj  => D<<1
-* 111 0 100001 ddd jjj  => D>>1
-* 111 0 100010 ddd jjj  => A<<1
-* 111 0 100011 ddd jjj  => A>>1
-* 111 1 100000 ddd jjj  => M<<1
-* 111 1 100001 ddd jjj  => M>>1
-*********/
 CHIP CPU {
-    IN
-        inM[16],
-        instruction[16],
-        reset;
-    OUT
-        outM[16],
-        writeM,
-        addressM[15],
-        pc[15];
+    IN inM[16], instruction[16], reset;
+    OUT outM[16], writeM, addressM[15], pc[15];
 
     PARTS:
-    // Tipo de instrucción
     Not(in=instruction[15], out=isAInstruction);
-    Or(a=instruction[15], b=false, out=isCInstruction);
+    Not(in=isAInstruction, out=isCInstruction);
 
-    // ------------------------------------------------------------
-    // Decodificación especial para shift
-    // c1..c6 = instruction[11..6]
-    // Prefix común: c1=1, c2=0, c3=0, c4=0
-    // c5 selecciona A cuando a=0
-    // c6 selecciona dirección (0 izquierda, 1 derecha)
-    // ------------------------------------------------------------
-    Not(in=instruction[10], out=n10);
-    Not(in=instruction[9], out=n9);
-    Not(in=instruction[8], out=n8);
-    And(a=instruction[11], b=n10, out=shiftP0);
-    And(a=shiftP0, b=n9, out=shiftP1);
-    And(a=shiftP1, b=n8, out=shiftPrefix);
-    And(a=isCInstruction, b=shiftPrefix, out=isShiftCandidate);
+    // A register load: always on A-instruction, or on C-instruction when dest includes A
+    And(a=isCInstruction, b=instruction[5], out=loadAFromC);
+    Or(a=isAInstruction, b=loadAFromC, out=loadA);
 
-    Not(in=instruction[12], out=naBit);
-    Not(in=instruction[7], out=nc5);
-
-    // D shift: a=0, c5=0
-    And(a=isShiftCandidate, b=naBit, out=tmpD0);
-    And(a=tmpD0, b=nc5, out=isDShift);
-
-    // A shift: a=0, c5=1
-    And(a=isShiftCandidate, b=naBit, out=tmpA0);
-    And(a=tmpA0, b=instruction[7], out=isAShift);
-
-    // M shift: a=1, c5=0
-    And(a=isShiftCandidate, b=instruction[12], out=tmpM0);
-    And(a=tmpM0, b=nc5, out=isMShift);
-
-    Or(a=isDShift, b=isAShift, out=shiftDA);
-    Or(a=shiftDA, b=isMShift, out=isShift);
-
-    // ------------------------------------------------------------
-    // Registros A y D
-    // ------------------------------------------------------------
-    // Valor actual del registro A
-    Register(in=aIn, load=loadA, out=aOut);
-    Register(in=aluOut, load=loadD, out=dOut);
-
-    // Fuente Y estándar: A o M según a-bit
-    Mux16(a=aOut, b=inM, sel=instruction[12], out=stdY);
-
-    // Selección de fuente X para shift
-    Mux16(a=dOut, b=aOut, sel=isAShift, out=shiftXA);
-    Mux16(a=shiftXA, b=inM, sel=isMShift, out=aluX);
-
-    // Para shift, y es irrelevante; se usa stdY para el resto
-    Or16(a=false, b=stdY, out=aluY);
-
-    // ------------------------------------------------------------
-    // Control de la ALU
-    // En modo shift se fuerzan:
-    // zx=0 nx=0 zy=0 ny=0 no=1 y f=instruction[6]
-    // ------------------------------------------------------------
-    Mux(a=instruction[11], b=false, sel=isShift, out=aluZx);
-    Mux(a=instruction[10], b=false, sel=isShift, out=aluNx);
-    Mux(a=instruction[9],  b=false, sel=isShift, out=aluZy);
-    Mux(a=instruction[8],  b=false, sel=isShift, out=aluNy);
-    Mux(a=instruction[7],  b=instruction[6], sel=isShift, out=aluF);
-    Mux(a=instruction[6],  b=true, sel=isShift, out=aluNo);
-
-    ALU(x=aluX, y=aluY, zx=aluZx, nx=aluNx, zy=aluZy, ny=aluNy, f=aluF, no=aluNo,
-        out=aluOut, zr=zr, ng=ng, result=shiftResult);
-
-    // ------------------------------------------------------------
-    // Señales de destino
-    // ------------------------------------------------------------
-    And(a=isCInstruction, b=instruction[5], out=destA);
-    And(a=isCInstruction, b=instruction[4], out=loadD);
-    And(a=isCInstruction, b=instruction[3], out=writeM);
-
-    // A se carga con:
-    // - una instrucción A completa
-    // - el resultado de la ALU si destA=1
-    Or(a=isAInstruction, b=destA, out=loadA);
+    // A register input: instruction value for A-instr, ALU output for C-instr with dest A
     Mux16(a=aluOut, b=instruction, sel=isAInstruction, out=aIn);
 
-    // Salida a memoria y dirección
-    Or16(a=false, b=aluOut, out=outM);
-    Or(a=false, b=aOut[0], out=addressM[0]);
-    Or(a=false, b=aOut[1], out=addressM[1]);
-    Or(a=false, b=aOut[2], out=addressM[2]);
-    Or(a=false, b=aOut[3], out=addressM[3]);
-    Or(a=false, b=aOut[4], out=addressM[4]);
-    Or(a=false, b=aOut[5], out=addressM[5]);
-    Or(a=false, b=aOut[6], out=addressM[6]);
-    Or(a=false, b=aOut[7], out=addressM[7]);
-    Or(a=false, b=aOut[8], out=addressM[8]);
-    Or(a=false, b=aOut[9], out=addressM[9]);
-    Or(a=false, b=aOut[10], out=addressM[10]);
-    Or(a=false, b=aOut[11], out=addressM[11]);
-    Or(a=false, b=aOut[12], out=addressM[12]);
-    Or(a=false, b=aOut[13], out=addressM[13]);
-    Or(a=false, b=aOut[14], out=addressM[14]);
+    ARegister(in=aIn, load=loadA, out=aOut, out[0..14]=addressM);
 
-    // ------------------------------------------------------------
-    // Lógica de salto estándar Hack
-    // ------------------------------------------------------------
+    // D register
+    And(a=isCInstruction, b=instruction[4], out=loadD);
+    DRegister(in=aluOut, load=loadD, out=dOut);
+
+    // ALU y input: A or M depending on a-bit
+    Mux16(a=aOut, b=inM, sel=instruction[12], out=aluY);
+
+    ALU(
+        x=dOut,
+        y=aluY,
+        zx=instruction[11],
+        nx=instruction[10],
+        zy=instruction[9],
+        ny=instruction[8],
+        f=instruction[7],
+        no=instruction[6],
+        out=aluOut,
+        zr=zr,
+        ng=ng,
+        result=shiftResult
+    );
+
+    // outputs to memory
+    Or16(a=aluOut, b=false, out=outM);
+    And(a=isCInstruction, b=instruction[3], out=writeM);
+
+    // jump logic
     Not(in=zr, out=nzr);
     Not(in=ng, out=nng);
+    And(a=nzr, b=nng, out=pos);
 
-    And(a=nzr, b=nng, out=pos);    // out > 0
-    Or(a=zr, b=pos, out=ge);       // out >= 0
-    Or(a=zr, b=ng, out=le);        // out <= 0
-
+    // jump bits: 001=JGT, 010=JEQ, 100=JLT
     And(a=instruction[0], b=pos, out=jgt);
     And(a=instruction[1], b=zr, out=jeq);
-    And(a=instruction[2], b=ge, out=jge);
+    And(a=instruction[2], b=ng, out=jlt);
 
-    And(a=instruction[2], b=ng, out=jlt); // j1 cuando solo ng sea verdadero para JLT, como se explica a continuación
-    And(a=instruction[1], b=le, out=jle);
-    And(a=instruction[0], b=nzr, out=jne);
-
-    // Implementación exacta por código jjj
-    Not(in=instruction[0], out=nj1);
-    Not(in=instruction[1], out=nj2);
-    Not(in=instruction[2], out=nj3);
-
-    // 001 JGT
-    And(a=nj3, b=nj2, out=jt0);
-    And(a=jt0, b=instruction[0], out=jt1);
-    And(a=jt1, b=pos, out=takeJGT);
-
-    // 010 JEQ
-    And(a=nj3, b=instruction[1], out=je0);
-    And(a=je0, b=nj1, out=je1);
-    And(a=je1, b=zr, out=takeJEQ);
-
-    // 011 JGE
-    And(a=nj3, b=instruction[1], out=jg0);
-    And(a=jg0, b=instruction[0], out=jg1);
-    And(a=jg1, b=ge, out=takeJGE);
-
-    // 100 JLT
-    And(a=instruction[2], b=nj2, out=jl0);
-    And(a=jl0, b=nj1, out=jl1);
-    And(a=jl1, b=ng, out=takeJLT);
-
-    // 101 JNE
-    And(a=instruction[2], b=nj2, out=jn0);
-    And(a=jn0, b=instruction[0], out=jn1);
-    And(a=jn1, b=nzr, out=takeJNE);
-
-    // 110 JLE
-    And(a=instruction[2], b=instruction[1], out=jl20);
-    And(a=jl20, b=nj1, out=jl21);
-    And(a=jl21, b=le, out=takeJLE);
-
-    // 111 JMP
-    And(a=instruction[2], b=instruction[1], out=jm0);
-    And(a=jm0, b=instruction[0], out=takeJMP);
-
-    Or(a=takeJGT, b=takeJEQ, out=jump0);
-    Or(a=takeJGE, b=takeJLT, out=jump1);
-    Or(a=takeJNE, b=takeJLE, out=jump2);
-    Or(a=jump0, b=jump1, out=jump3);
-    Or(a=jump2, b=takeJMP, out=jump4);
-    Or(a=jump3, b=jump4, out=jumpAny);
-    And(a=isCInstruction, b=jumpAny, out=pcLoad);
+    Or(a=jgt, b=jeq, out=j1);
+    Or(a=j1, b=jlt, out=jumpCond);
+    And(a=isCInstruction, b=jumpCond, out=pcLoad);
 
     PC(in=aOut, load=pcLoad, inc=true, reset=reset, out[0..14]=pc);
 }
