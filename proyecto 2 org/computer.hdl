@@ -1,0 +1,16 @@
+/*********
+* Computer.hdl – Computador Hack completo
+* Autor 1:
+* Autor 2:
+*********/
+CHIP Computer {
+    IN reset;
+
+    PARTS:
+    ROM32K(address=pc, out=instruction);
+
+    CPU(inM=memOut, instruction=instruction, reset=reset,
+        outM=cpuOutM, writeM=cpuWriteM, addressM=cpuAddressM, pc=pc);
+
+    Memory(address=cpuAddressM, in=cpuOutM, load=cpuWriteM, out=memOut);
+}
