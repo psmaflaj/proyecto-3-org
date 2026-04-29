@@ -25,9 +25,7 @@ CHIP ALU {
         result;
 
     PARTS:
-    // ------------------------------------------------------------
     // Datapath estándar Hack ALU
-    // ------------------------------------------------------------
     Mux16(a=x, b=false, sel=zx, out=xZeroed);
     Not16(in=xZeroed, out=xNot);
     Mux16(a=xZeroed, b=xNot, sel=nx, out=xReady);
@@ -42,10 +40,8 @@ CHIP ALU {
     Not16(in=preNo, out=preNoNot);
     Mux16(a=preNo, b=preNoNot, sel=no, out=stdOut);
 
-    // ------------------------------------------------------------
     // Detección del modo shift
     // shiftMode = !zx & !nx & !zy & !ny & no
-    // ------------------------------------------------------------
     Not(in=zx, out=nzx);
     Not(in=nx, out=nnx);
     Not(in=zy, out=nzy);
@@ -56,20 +52,16 @@ CHIP ALU {
     And(a=shiftT0, b=shiftT1, out=shiftT2);
     And(a=shiftT2, b=no, out=shiftMode);
 
-    // ------------------------------------------------------------
     // Shifter externo del punto 1
     // La dirección viene dada por f:
     // 0 => izquierda, 1 => derecha
-    // ------------------------------------------------------------
     Shifter(in=x, direction=f, out=shiftOut, result=shiftResult);
 
     // Selección final de salida
     Mux16(a=stdOut, b=shiftOut, sel=shiftMode, out=out);
     Mux(a=false, b=shiftResult, sel=shiftMode, out=result);
 
-    // ------------------------------------------------------------
     // Banderas zr y ng calculadas sobre la salida final
-    // ------------------------------------------------------------
     Or8Way(in=out[0..7], out=orLow);
     Or8Way(in=out[8..15], out=orHigh);
     Or(a=orLow, b=orHigh, out=outNonZero);
